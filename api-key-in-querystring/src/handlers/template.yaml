@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  api-key-in-query-string-sam
+Globals:
+  Function:
+    CodeUri: ./
+    Timeout: 10
+    Runtime: nodejs14.x
+
+  Api:
+    OpenApiVersion: 3.0.1
+    Cors:
+      AllowOrigin: "'*'"
+      AllowMethods: "'GET, POST'"
+
+Resources:
+  MyMyAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: auth.lambda_handler
+  BackendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: backend.lambda_handler
+      Events:
+        health:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: myApi
+            Path: /shortfunnel-health
+            Method: post
+
+  myApi:
+      DependsOn: MyAuthFunction
+      Type: AWS::Serverless::Api
+      Properties:
+        StageName: dev
+        EndpointConfiguration:
+          Type: REGIONAL
+        Auth:
+            DefaultAuthorizer: LambdaRequestAuthorizer
+            ApiKeyRequired: true
+            Authorizers:
+              LambdaRequestAuthorizer:
+                FunctionPayloadType: REQUEST
+                FunctionArn: !GetAtt MyAuthFunction.Arn
+                Identity:
+                  ReauthorizeEvery: 300
+                  QueryStrings:
+                    - apiKey
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: myApidevStage
+    Properties:
+      Name: !Join ["", ["dev", "-unbounce-sam-api-key"]]
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref myApi
+          StageName: dev
+      Value: !Join ["", ["dev", "-unbounce-sam-api-key"]]
+
+  UsagePlan:
+    DependsOn: myApidevStage
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      ApiStages:
+        - ApiId: !Ref myApi
+          Stage: dev
+      Throttle:
+        BurstLimit: 50
+        RateLimit: 100
+      UsagePlanName: MyUsagePlan
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+Outputs:
+  myApiHealth:
+    Description: "API Gateway endpoint URL for dev stage for api key validation in query string"
+    Value: !Sub "https://${myApi}.execute-api.${AWS::Region}.amazonaws.com/dev/shortfunnel-health?apiKey=sam-unbounce-api-key"

@@ -1,0 +1,47 @@
+service: aws-node-http-api-project
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+
+functions:
+  MyAuthFunction:
+    description: Extracts api key, authenticates against usage plan, allow/deny http methods and returns auth response object
+    handler: handler.authenticate
+
+  BackendFunction:
+    events:
+      - httpApi:
+          path: /
+          method: get
+          authorizer: MyAuthFunction
+
+
+provider:
+  name: aws
+  httpApi:
+    authorizers:
+      customAuthorizer:
+        type: request
+        functionName: authorizerFunc
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - httpApi:
+          method: post
+          cors: true
+          path: /shortfunnel-health
+          authorizer:
+            name: customAuthorizer
+      - httpApi:
+          method: post
+          cors: true
+          path: /shortfunnel-energy
+          authorizer:
+            name: customAuthorizer
+
+  authorizerFunc:
+    handler: authorizer.handler

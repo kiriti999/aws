@@ -1,0 +1,510 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  VPCEnv:
+    Type: String
+    MinLength: 1
+    Description: 'The id for references to Core Services created items.'
+
+  Environment:
+    Type: String
+    Description: 'Environment to create backend infra for'
+
+  KeyName:
+    Type: String
+    Description: 'Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.'
+
+  DesiredCapacity:
+    Type: String
+    Default: '1'
+    Description: 'Number of instances to launch in your ECS cluster.'
+
+  MaxSize:
+    Type: String
+    Default: '1'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+
+  InstanceType:
+    Description: 'EC2 instance type'
+    Type: String
+    Default: 't2.large'
+
+  BackendContainerImage:
+    Type: String
+    MinLength: 1
+
+  RedisNodeType:
+    Type: String
+    Default: cache.t2.micro
+
+  Version:
+    Type: String
+    MinLength: 1
+
+  AMIID:
+    Type: String
+    MinLength: 1
+
+  SkipCreatingRetainedResources:
+    Type: String
+    AllowedValues: [ "true", "false" ]
+    Default: "false"
+    Description: Use this to create resources if they are retained and not existing.
+
+Conditions:
+  CreateProdResources: !Equals [!Ref Environment, prod]
+  CreateRetainedResources: !Equals [ !Ref SkipCreatingRetainedResources, true]
+
+Resources:
+  ExecutionRole:
+        Type: 'AWS::IAM::Role'
+        Properties:
+          AssumeRolePolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Principal:
+                  Service: ['ecs-tasks.amazonaws.com']
+                Action: ['sts:AssumeRole']
+          Policies:
+            - PolicyName: !Sub aws-practice-${Environment}-execution-user-role
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: 'Allow'
+                    Action: ['ecs:CreateCluster', 'ecs:DeregisterContainerInstance', 'ecs:DiscoverPollEndpoint',
+                            'ecs:Poll', 'ecs:RegisterContainerInstance', 'ecs:StartTelemetrySession',
+                            'ecs:UpdateContainerInstancesState', 'ecs:Submit*', 'ecr:GetAuthorizationToken',
+                            'ecr:BatchCheckLayerAvailability', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchGetImage',
+                            'logs:CreateLogStream', 'logs:PutLogEvents', 'ssm:GetParameter', 'kms:Decrypt', 'ssm:GetParameters']
+                    Resource: '*'
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Security Group
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCEnv}-VPC"
+      SecurityGroupIngress:
+        -
+          IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${VPCEnv}-BastionSecurityGroup"
+        -
+          IpProtocol: tcp
+          FromPort: '31000'
+          ToPort: '61000'
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "aws-practice-${Environment}-LBSecurityGroup"
+      GroupDescription:  aws-practice service Load Balancer Security Group
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCEnv}-VPC"
+      SecurityGroupIngress:
+        -
+          IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${VPCEnv}-APILoadBalancerSecurityGroup"
+
+  CloudwatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Condition: CreateRetainedResources
+    Properties:
+      LogGroupName: !Join ['-', [ECSLogGroup, !Ref 'AWS::StackName']]
+      RetentionInDays: 14
+
+  awsPracticeServiceTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub 'aws-practice-${Environment}'
+      ExecutionRoleArn: !Ref ExecutionRole
+      ContainerDefinitions:
+      - Name: !Sub 'aws-practice-${Environment}-container'
+        Cpu: 600
+        Essential: 'true'
+        Image: !Ref BackendContainerImage
+        Memory: 1800
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Join ['-', [ECSLogGroup, !Ref 'AWS::StackName']]
+            awslogs-region: !Ref 'AWS::Region'
+            awslogs-stream-prefix: !Sub 'aws-practice-${Environment}'
+        PortMappings:
+          - ContainerPort: 3000
+        Environment:
+          - Name: CHECK_HTTPS
+            Value: 'false'
+          - Name: MONGO_POOL_SIZE
+            Value: '5'
+          - Name: NODE_ENV
+            Value: 'production'
+          - Name: PING_URI_UNSECURED
+            Value: 'health'
+          - Name: REDIS_REJECT_TIMEOUT
+            Value: '50'
+          - Name: REDIS_URL
+            Value: !Join [ "", [ "redis://", !Join [ ":", [ !GetAtt ElasticacheCluster.RedisEndpoint.Address, !GetAtt ElasticacheCluster.RedisEndpoint.Port ]]]]
+          - Name: VERSION
+            Value: !Ref 'Version'
+        Secrets:
+        - Name: MASTERDB
+          ValueFrom: !Sub '/${Environment}/aws-practice/masterdb'
+        - Name: MONGO_URL
+          ValueFrom: !Sub '/${Environment}/aws-practice/mongoUrl'
+        - Name: ASSERTION_TOKEN
+          ValueFrom: !Sub '/${Environment}/aws-practice/assertionToken'
+        - Name: DATADOG_ENV
+          ValueFrom: !Sub '/${Environment}/aws-practice/datadogEnvironment'
+        - Name: DATADOG_SERVICE_NAME
+          ValueFrom: !Sub '/${Environment}/aws-practice/datadogServiceName'
+
+  ECSALBDNS:
+    Type: "AWS::Route53::RecordSet"
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt [ ECSALB, DNSName ]
+        HostedZoneId: !GetAtt [ ECSALB, CanonicalHostedZoneID ]
+      Comment: Internal DNS entry for aws practicea service load balancer.
+      HostedZoneId: !If [CreateProdResources, 'Z17G759VMOTFMX', 'Z280F9HOA9NDKZ']
+      Name: !Sub "api.internal.aws-practice.${Environment}.altusplatform.com."
+      Type: A
+
+  ECSALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "aws-practice-${Environment}-lb"
+      Scheme: internal
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: '20'
+      Subnets:
+        Fn::Split:
+          - ','
+          - Fn::ImportValue: !Sub "${VPCEnv}-PrivateSubnets2"
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+        - Fn::ImportValue : !Sub "${VPCEnv}-APILoadBalancerSecurityGroup"
+      Tags:
+        - Key: Project
+          Value: 'vanguard'
+        - Key: Scope
+          Value: 'aws practicea'
+        - Key: Env
+          Value: !Sub '${Environment}'
+        - Key: Owner
+          Value: 'aws practice'
+        - Key: Createdby
+          Value: !Sub 'aws-practice-${Environment}'
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: ECSServiceRole
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG'
+      LoadBalancerArn: !Ref 'ECSALB'
+      Port: '80'
+      Protocol: HTTP
+
+  ECSALBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: ALBListener
+    Properties:
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG'
+      Conditions:
+      - Field: path-pattern
+        Values: [/]
+      ListenerArn: !Ref 'ALBListener'
+      Priority: 1
+
+  ECSTG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: ECSALB
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Sub "aws-practice-${Environment}-tg"
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCEnv}-VPC"
+      Tags:
+        - Key: Project
+          Value: 'vanguard'
+        - Key: Scope
+          Value: 'aws practicea'
+        - Key: Env
+          Value: !Sub '${Environment}'
+        - Key: Owner
+          Value: 'aws practice'
+        - Key: Createdby
+          Value: !Sub 'aws-practice-${Environment}'
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        Fn::Split:
+          - ','
+          - Fn::ImportValue: !Sub "${VPCEnv}-PrivateSubnets2"
+      LaunchConfigurationName: !Ref 'ContainerInstances'
+      MinSize: '1'
+      MaxSize: !Ref 'MaxSize'
+      DesiredCapacity: !Ref 'DesiredCapacity'
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-aws-practice-ECS-Cluster-EC2'
+          PropagateAtLaunch: true
+        - Key: Project
+          Value: 'vanguard'
+          PropagateAtLaunch: true
+        - Key: Scope
+          Value: 'aws practicea'
+          PropagateAtLaunch: true
+        - Key: Env
+          Value: !Sub '${Environment}'
+          PropagateAtLaunch: true
+        - Key: Owner
+          Value: 'aws practice'
+          PropagateAtLaunch: true
+        - Key: Createdby
+          Value: !Sub 'aws-practice-${Environment}'
+          PropagateAtLaunch: true
+
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Sub '${AMIID}'
+      SecurityGroups: [!Ref 'EcsSecurityGroup']
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      KeyName: !If [CreateProdResources, 'vanprod-01', !Ref 'KeyName']
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum update -y
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+          yum install -y awslogs jq
+          region=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+          sed -i -e "s/region = us-east-1/region = $region/g" /etc/awslogs/awscli.conf
+          yum install -y https://amazon-ssm-$region.s3.amazonaws.com/latest/linux_amd64/amazon-ssm-agent.rpm
+
+
+  service:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      Cluster: !Ref 'ECSCluster'
+      DesiredCount: '2'
+      LoadBalancers:
+      - ContainerName: !Sub 'aws-practice-${Environment}-container'
+        ContainerPort: 3000
+        TargetGroupArn: !Ref 'ECSTG'
+      Role: !Ref 'ECSServiceRole'
+      TaskDefinition: !Ref 'awsPracticeServiceTaskDefinition'
+      DeploymentConfiguration:
+        MaximumPercent: 150
+        MinimumHealthyPercent: 50
+
+  ECSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['elasticloadbalancing:DeregisterInstancesFromLoadBalancer', 'elasticloadbalancing:DeregisterTargets',
+              'elasticloadbalancing:Describe*', 'elasticloadbalancing:RegisterInstancesWithLoadBalancer',
+              'elasticloadbalancing:RegisterTargets', 'ec2:Describe*', 'ec2:AuthorizeSecurityGroupIngress']
+            Resource: '*'
+
+  ServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: service
+    Properties:
+      MaxCapacity: 1
+      MinCapacity: 1
+      ResourceId: !Join ['', [service/, !Ref 'ECSCluster', /, !GetAtt [service, Name]]]
+      RoleARN: !GetAtt [AutoscalingRole, Arn]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ServiceScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AStepPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref 'ServiceScalingTarget'
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          ScalingAdjustment: 200
+
+  ALB500sAlarmScaleUp:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '10'
+      AlarmDescription: Alarm if our ALB generates too many HTTP 500s.
+      Period: '60'
+      AlarmActions: [!Ref 'ServiceScalingPolicy']
+      Namespace: AWS/ApplicationELB
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt
+            - ECSALB
+            - LoadBalancerFullName
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: HTTPCode_ELB_5XX_Count
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ec2.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['ecs:CreateCluster', 'ecs:DeregisterContainerInstance', 'ecs:DiscoverPollEndpoint',
+              'ecs:Poll', 'ecs:RegisterContainerInstance', 'ecs:StartTelemetrySession', 'ecs:UpdateContainerInstancesState',
+              'ecs:Submit*', 'ecr:GetAuthorizationToken', 'ecr:BatchCheckLayerAvailability', 'ecr:GetDownloadUrlForLayer', 'ecr:BatchGetImage',
+              'logs:CreateLogStream', 'logs:PutLogEvents']
+            Resource: '*'
+
+  AutoscalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [application-autoscaling.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: service-autoscaling
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['application-autoscaling:*', 'cloudwatch:DescribeAlarms', 'cloudwatch:PutMetricAlarm',
+              'ecs:DescribeServices', 'ecs:UpdateService']
+            Resource: '*'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
+
+  RedisParameterGroup:
+      Type: AWS::ElastiCache::ParameterGroup
+      Properties:
+        CacheParameterGroupFamily: redis5.0
+        Description: RedisParameterGroup
+
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: RedisSubnetGroup
+      SubnetIds:
+        Fn::Split:
+          - ','
+          - Fn::ImportValue: !Sub "${VPCEnv}-PrivateSubnets2"
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RedisSecurityGroup
+      VpcId:
+        Fn::ImportValue: !Sub "${VPCEnv}-VPC"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref EcsSecurityGroup
+
+  ElasticacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      AutoMinorVersionUpgrade: true
+      ClusterName: !Sub "aws-practice-${Environment}-redis"
+      CacheParameterGroupName: !Ref RedisParameterGroup
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      Engine: redis
+      EngineVersion: 5.0.6
+      CacheNodeType: !Ref RedisNodeType
+      NumCacheNodes: 1
+      VpcSecurityGroupIds:
+        -
+          Fn::GetAtt:
+            - "RedisSecurityGroup"
+            - "GroupId"
+      Tags:
+        - Key: Project
+          Value: 'vanguard'
+        - Key: Scope
+          Value: 'aws practicea'
+        - Key: Env
+          Value: !Sub '${Environment}'
+        - Key: Owner
+          Value: 'aws practice'
+        - Key: Createdby
+          Value: !Sub 'aws-practice-${Environment}'
+
+Outputs:
+  ecsservice:
+    Value: !Ref 'service'
+  ecscluster:
+    Value: !Ref 'ECSCluster'
+  ECSALB:
+    Description: Your ALB DNS URL
+    Value: !Join ['', [!GetAtt [ECSALB, DNSName]]]
+  taskdef:
+    Value: !Ref 'awsPracticeServiceTaskDefinition'

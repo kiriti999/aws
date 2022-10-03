@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "app-portfolio-api-authorizer-test-euw1-cf"
+s3_prefix = "app-portfolio-api-authorizer-test-euw1-cf"
+region = "eu-west-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_NAMED_IAM"
+disable_rollback = true
+parameter_overrides = "Environment=\"test\" Location=\"euw1\" AppName=\"app-api-authorizer\" dynamoDbTableName=\"ApiScope\" dynamoDbEndPointServiceName=\"com.amazonaws.eu-west-1.dynamodb\""
+image_repositories = []
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-qiereazs2zd2"

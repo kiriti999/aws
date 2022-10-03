@@ -1,0 +1,7 @@
+.aws-sam
+/.aws-sam
+/.aws-sam/*
+./.aws-sam/*
+
+node_modules
+.serverless

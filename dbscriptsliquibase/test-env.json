@@ -1,0 +1,14 @@
+{
+    "NODE_ENV": "test",
+    "HOST": "host.docker.internal",
+    "PORT": "33032",
+    "USER": "postgres",
+    "PASSWORD": "admin",
+    "DATABASE": "dbscriptsliquibase",
+    "CONNECTION_TIMEOUT": 20000,
+    "REGION": "eu-west-1",
+    "ENDPOINT_URL": "http://host.docker.internal:4566",
+    "LOCAL_LAMBDA_URL": "http://localhost:3001",
+    "AWS_API_VERSION": "1",
+    "AWSREGION": "eu-west-1"
+}

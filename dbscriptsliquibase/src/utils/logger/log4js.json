@@ -1,0 +1,15 @@
+{
+    "appenders": {
+      "dbscriptsliquibase": {
+        "type": "console"
+      }
+    },
+    "categories": {
+      "default": {
+        "appenders": [
+          "dbscriptsliquibase"
+        ],
+        "level": "info"
+      }
+    }
+  }

@@ -1,0 +1,65 @@
+{
+  "body": {
+  },
+  "resource": "/{proxy+}",
+  "path": "/path/to/resource",
+  "httpMethod": "POST",
+  "isBase64Encoded": false,
+  "queryStringParameters": {
+    "foo": "bar"
+  },
+  "pathParameters": {
+    "proxy": "/path/to/resource",
+    "id": 1
+  },
+  "stageVariables": {
+    "baz": "qux"
+  },
+  "headers": {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, sdch",
+    "Accept-Language": "en-US,en;q=0.8",
+    "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ilg1ZVhrNHh5b2pORnVtMWtsMll0djhkbE5QNC1jNTdkTzZRR1RWQndhTmsifQ.eyJpc3MiOiJodHRwczovL2FwcHNieC5iMmNsb2dpbi5jb20vNTBkYTJkMTQtMTBkYi00YjhjLTg5OWItNmM0NTkyOThiY2RkL3YyLjAvIiwiZXhwIjoxNjQxODQ5MTQ0LCJuYmYiOjE2NDE4NDU1NDQsImF1ZCI6ImJmNWQzNzcyLWVmYzItNDRlOS1iMzczLTQwZjgwOTY0MzkyZCIsIm9pZCI6IjZjZTQ1NWJlLTBjYTctNDg1Mi04YjA5LWU3MjM2NTc4ZTI4YiIsInN1YiI6IjZjZTQ1NWJlLTBjYTctNDg1Mi04YjA5LWU3MjM2NTc4ZTI4YiIsImdpdmVuX25hbWUiOiJIYXNoYW4iLCJmYW1pbHlfbmFtZSI6IkoiLCJleHRlbnNpb25fT3JnYW5pemF0aW9uIjoiQWx0dXMiLCJlbWFpbHMiOlsiaGFzaGFuLmpheWF3YXJkZW5hQGFsdHVzZ3JvdXAuY29tIl0sInRmcCI6IkIyQ18xX3NpZ251cHNpZ25pbjEiLCJub25jZSI6ImRlZmF1bHROb25jZSIsInNjcCI6ImFzc2V0cy5yZWFkIiwiYXpwIjoiZmY2NjE4ZTgtODJjYi00ZTc0LWI2NDMtNGE1NGJhOTRhNGFkIiwidmVyIjoiMS4wIiwiaWF0IjoxNjQxODQ1NTQ0fQ.GhPLeK3eEpQ0XD1kKY9VLMYkfAD1QxI_TPBAIju5V3IZIMF0tGtFa1_PqtGOwaemHKHBOeiIconuRm5HqPK3wpnqg3APUk8kr6zPMVmgXAD1LV7Saba3SXnLwlpzY0z9dAJcQ3VQZPY4sPuB5-y4f99_C6ZPzxs8Kz2A0784dlDHWGTF33d35TvPR5eP5bo0S-_OcGtYCqIij6Omi1kIdg89PGRQH9BKoxRGJa9FkfVl0MRNdvMNWZYWh2lnPuSmtcql9pcOYTE9cwEo8Q_j8dH3_V0qt3HMl-oOxPfqu2SX9eRpsE3wL9VOqnxDFi8muQiAgfFwZK6xKMS6uKLGjw",
+    "Cache-Control": "max-age=0",
+    "CloudFront-Forwarded-Proto": "https",
+    "CloudFront-Is-Desktop-Viewer": "true",
+    "CloudFront-Is-Mobile-Viewer": "false",
+    "CloudFront-Is-SmartTV-Viewer": "false",
+    "CloudFront-Is-Tablet-Viewer": "false",
+    "CloudFront-Viewer-Country": "US",
+    "Host": "1234567890.execute-api.us-east-1.amazonaws.com",
+    "Upgrade-Insecure-Requests": "1",
+    "User-Agent": "Custom User Agent String",
+    "Via": "1.1 08f323deadbeefa7af34d5feb414ce27.cloudfront.net (CloudFront)",
+    "X-Amz-Cf-Id": "cDehVQoZnx43VYQb9j2-nvCh-9z396Uhbp027Y2JvkCPNLmGJHqlaA==",
+    "X-Forwarded-For": "127.0.0.1, 127.0.0.2",
+    "X-Forwarded-Port": "443",
+    "X-Forwarded-Proto": "https"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "resourceId": "123456",
+    "stage": "prod",
+    "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+    "requestTime": "09/Apr/2015:12:34:56 +0000",
+    "requestTimeEpoch": 1428582896000,
+    "identity": {
+      "cognitoIdentityPoolId": null,
+      "accountId": null,
+      "cognitoIdentityId": null,
+      "caller": null,
+      "accessKey": null,
+      "sourceIp": "127.0.0.1",
+      "cognitoAuthenticationType": null,
+      "cognitoAuthenticationProvider": null,
+      "userArn": null,
+      "userAgent": "Custom User Agent String",
+      "user": null
+    },
+    "path": "/prod/path/to/resource",
+    "resourcePath": "/{proxy+}",
+    "httpMethod": "POST",
+    "apiId": "1234567890",
+    "protocol": "HTTP/1.1"
+  }
+}

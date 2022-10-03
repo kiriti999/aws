@@ -1,0 +1,14 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "dbscriptsliquibase"
+s3_prefix = "dbscriptsliquibase"
+s3_bucket = "dbscriptsliquibase"
+region = "eu-west-1"
+confirm_changeset = false
+disable_rollback = false
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Environment=\"qa\" AccountId=\"553856789961\" Region=\"eu-west-1\" Location=\"euw1\" AppName=\"dbscriptsliquibase\" VpcSg=\"sg-0e7c40083c916ebfa\" LogRetention=\"1\""
+image_repositories = []
+

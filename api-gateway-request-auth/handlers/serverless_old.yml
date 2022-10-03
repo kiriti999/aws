@@ -1,0 +1,32 @@
+service: sls-api-gateway-request-auth
+frameworkVersion: '3'
+configValidationMode: error
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  runtime: nodejs14.x
+  timeout: 30
+
+functions:
+  authFunction:
+    handler: ./auth.lambda_handler
+
+  backendFunction:
+    handler: ./backend.lambda_handler
+    runtime: nodejs14.x
+    events:
+      - http:
+          method: get
+          cors: true
+          path: /auth
+          authorizer:
+            name: authFunction
+            type: request
+
+resources:
+  Resources:
+  Outputs:
+    MyApiAuth:
+      Description: "API Gateway endpoint URL for dev stage for api key validation in query string"
+      Value: !Sub "https://{sls:instanceId}.execute-api.${AWS::Region}.amazonaws.com/dev/hello/auth?apiKey=yes"

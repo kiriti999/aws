@@ -1,0 +1,7 @@
+version: "3"
+services:
+  liquibase:
+    image: liquibase/liquibase:latest
+    entrypoint: liquibase --defaultsFile=/liquibase/changelog/liquibase.properties update
+    volumes:
+      - ./:/liquibase/changelog

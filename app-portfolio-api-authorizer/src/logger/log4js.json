@@ -1,0 +1,36 @@
+{
+    "appenders": {
+        "lambda": {
+            "type": "console",
+            "layout": {
+                "type": "json"
+            }
+        },
+        "resource": {
+            "type": "console",
+            "layout": {
+                "type": "json"
+            }
+        }
+    },
+    "categories": {
+        "default": {
+            "appenders": [
+                "lambda"
+            ],
+            "level": "debug"
+        },
+        "lambda.invoke": {
+            "appenders": [
+                "lambda"
+            ],
+            "level": "info"
+        },
+        "lambda.resource": {
+            "appenders": [
+                "resource"
+            ],
+            "level": "debug"
+        }
+    }
+}

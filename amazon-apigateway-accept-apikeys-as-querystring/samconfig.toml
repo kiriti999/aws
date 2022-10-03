@@ -1,0 +1,10 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "api-key-in-querystring"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1mriytano8klx"
+s3_prefix = "api-key-in-querystring"
+region = "ap-southeast-2"
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

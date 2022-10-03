@@ -1,0 +1,41 @@
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    # secret_name:  "/qa/app-portfolio-rolemgmtservice/dbInfo"
+    secret_name:  "/qa/dbscriptsliquibase/dbInfo"
+  secrets-manager:
+    DB_USERNAME: "${secret_name}:username"
+    DB_PASSWORD: "${secret_name}:password"
+    DB_NAME: "${secret_name}:dbname"
+    DB_HOST: "${secret_name}:host"
+    DB_PORT: "${secret_name}:port"
+
+phases:
+  install:
+      runtime-versions:
+          docker: 18
+      commands:
+        - cd liquibase && chmod +x *.sh
+        - ./init.sh ${DB_USERNAME} ${DB_PASSWORD} ${DB_NAME} ${DB_HOST} ${DB_PORT}
+        # - npm run migrate -- ${DB_USERNAME} ${DB_PASSWORD} ${DB_NAME} ${DB_HOST} ${DB_PORT}
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - liquibase --version
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Build started on `date`
+      - liquibase --defaultsFile=liquibase.properties update
+      # - liquibase --defaultsFile=liquibase.properties checks run
+      # - liquibase --defaultsFile=liquibase.properties validate
+      # - liquibase --defaultsFile=liquibase.properties tag codebuild-$CODEBUILD_BUILD_NUMBER
+      # - liquibase --defaultsFile=liquibase.properties status --verbose
+      # - liquibase --defaultsFile=liquibase.properties updateSql
+      # - liquibase --defaultsFile=/changelog/liquibase.properties update
+      # - liquibase --defaultsFile=liquibase.properties history
+  post_build:
+    commands:
+      - echo Build completed on `date`

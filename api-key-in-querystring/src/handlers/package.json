@@ -1,0 +1,23 @@
+{
+  "name": "api-key-in-querystring",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^0.27.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiriti999/api-key-in-querystring.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kiriti999/api-key-in-querystring/issues"
+  },
+  "homepage": "https://github.com/kiriti999/api-key-in-querystring#readme"
+}

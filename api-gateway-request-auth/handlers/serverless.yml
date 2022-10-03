@@ -1,0 +1,60 @@
+service: sls-api-gateway-request-auth
+frameworkVersion: '3'
+configValidationMode: error
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  runtime: nodejs14.x
+  timeout: 30
+
+functions:
+  authFunction:
+    handler: ./auth.lambda_handler
+
+  backendFunction:
+    handler: ./backend.lambda_handler
+    runtime: nodejs14.x
+    events:
+      - http:
+          method: get
+          cors: true
+          path: /hello
+          authorizer:
+            name: authFunction
+            type: request
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+resources:
+  Resources:
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        AuthorizerResultTtlInSeconds: 300
+        IdentitySource: method.request.querystring.auth
+        Name: UnbounceTesting
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: REQUEST
+        AuthorizerUri:
+          Fn::Join: [ "",
+            [
+              "arn:aws:apigateway:",
+              "ap-southeast-2",
+              ":lambda:path/",
+              "2015-03-31/functions/", "arn:aws:lambda:ap-southeast-2:327303463717:function:lambda_request_authorizer",
+              "/invocations"
+            ]]
+
+    GWAuthPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: arn:aws:lambda:ap-southeast-2:327303463717:function:lambda_request_authorizer
+        Principal: "apigateway.amazonaws.com"
+
+  Outputs:
+    MyApiAuth:
+      Description: "API Gateway endpoint URL for dev stage for api key validation in query string"
+      Value: !Sub "https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/dev/hello/auth?apiKey=yes"

@@ -1,0 +1,25 @@
+import hudson.model.Result
+
+pipeline {
+    agent any
+
+    stages {
+        stage('lint') {
+            steps {
+                echo 'lint done'
+            }
+        }
+
+        stage('test') {
+            steps {
+                echo 'test done'
+            }
+        }
+
+        stage('deploy') {
+            steps {
+                echo 'deploy done'
+            }
+        }
+    }
+}

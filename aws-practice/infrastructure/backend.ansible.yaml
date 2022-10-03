@@ -1,0 +1,42 @@
+---
+
+  - hosts: all
+    vars:
+        env: ""
+        backendContainerImage: ""
+        vpcEnv: ""
+        version: ""
+        amiId: ""
+        skipRetainedResources: ""
+
+    tasks:
+      - name: Ensure required variables exist
+        assert:
+          that:
+            - env != ""
+            - backendContainerImage != ""
+            - vpcEnv != ""
+            - version != ""
+            - amiId != ""
+            - skipRetainedResources != ""
+
+      - name: Update Backend CF Stack
+        cloudformation:
+          stack_name: "aws-practice-{{ env }}"
+          state: 'present'
+          region: 'us-east-2'
+          template: 'backendEcsCloudFormation.yaml'
+          template_parameters:
+            Environment: "{{ env }}"
+            KeyName: 'aws-practice-key'
+            BackendContainerImage: "{{ backendContainerImage }}"
+            VPCEnv: "{{ vpcEnv }}"
+            Version: "{{ version }}"
+            AMIID: "{{ amiId }}"
+            SkipCreatingRetainedResources: "{{ skipRetainedResources }}"
+          tags:
+            Project: "vanguard"
+            Scope: "aws practice"
+            Env: "{{ env }}"
+            Owner: "aws practice"
+            Createdby: "aws-practice-{{ env }}"

@@ -1,0 +1,42 @@
+service: test-project
+frameworkVersion: '3'
+configValidationMode: error
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - httpApi:
+          path: /
+          method: get
+
+resources:
+  Resources:
+    authFunction:
+      Type: AWS::Serverless::Function
+      Properties:
+        CodeUri: .
+        Handler: handler.hello
+
+    ShortFunnelApi:
+      DependsOn: AuthFunction
+      Type: AWS::Serverless::Api
+      Properties:
+        StageName: dev
+        EndpointConfiguration:
+          Type: REGIONAL
+        Auth:
+            DefaultAuthorizer: LambdaRequestAuthorizer
+            ApiKeyRequired: true
+            Authorizers:
+              LambdaRequestAuthorizer:
+                FunctionPayloadType: REQUEST
+                FunctionArn: !GetAtt AuthFunction.Arn
+                Identity:
+                  ReauthorizeEvery: 300
+                  QueryStrings:
+                    - apiKey

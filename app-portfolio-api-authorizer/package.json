@@ -1,0 +1,40 @@
+{
+  "name": "app-portfolio-api-authorizer",
+  "version": "1.0.0",
+  "description": "Lambda function for Authorizing API calls",
+  "main": "../dist/app.js",
+  "repository": "https://github.com/Voyanta/app-portfolio-api-authorizer",
+  "author": "APP Portfolio Team",
+  "license": "MIT",
+  "dependencies": {
+    "amazon-dax-client": "^1.2.7",
+    "aws-sdk": "^2.1033.0",
+    "jsonwebtoken": "^8.5.1",
+    "jwks-rsa": "^2.0.5",
+    "log4js": "^6.3.0"
+  },
+  "scripts": {
+    "build:ts": "tsc",
+    "build:ts:watch": "tsc -w",
+    "sam:build": "sam build",
+    "sam:build:watch": "nodemon --exec sam build",
+    "sam:deploy": "sam deploy",
+    "build:prod": "tsc --sourceMap false",
+    "test:unit": "env-cmd --file test-env.json jest tests/unit --bail=true --config=tests/unit/jest-unit-config.js",
+    "test:integration": "env-cmd --file test-env.json  jest --runInBand tests/integration --bail=true --config=tests/integration/jest-config.js"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.85",
+    "@types/jest": "^27.4.0",
+    "@types/node": "^16.11.12",
+    "axios": "^0.24.0",
+    "chai": "^4.2.0",
+    "env-cmd": "^10.1.0",
+    "jest": "^27.4.3",
+    "jest-junit": "^13.0.0",
+    "mocha": "^6.1.4",
+    "nodemon": "^2.0.15",
+    "ts-jest": "^27.1.0",
+    "typescript": "^4.5.2"
+  }
+}

@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM Template for dbscriptsliquibase application
+
+Globals:
+  Function:
+    CodeUri: ./src/handlers
+    Timeout: 10
+    Runtime: nodejs14.x
+    Environment:
+      Variables:
+        NODE_ENV: "production"
+        HOST: !Sub "{{resolve:secretsmanager:/${Environment}/${AppName}/dbInfo:SecretString:host}}"
+        PORT: !Sub "{{resolve:secretsmanager:/${Environment}/${AppName}/dbInfo:SecretString:port}}"
+        USER: !Sub "{{resolve:secretsmanager:/${Environment}/${AppName}/dbInfo:SecretString:username}}"
+        PASSWORD: !Sub "{{resolve:secretsmanager:/${Environment}/${AppName}/dbInfo:SecretString:password}}"
+        DATABASE: !Sub "{{resolve:secretsmanager:/${Environment}/${AppName}/dbInfo:SecretString:dbname}}"
+        CONNECTION_TIMEOUT: "20000"
+        LIMIT_MAX_VALUE: "500"
+        AWSREGION: "eu-west-1"
+        AWS_API_VERSION: "2012-11-05"
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref VpcSg
+      SubnetIds:
+        - subnet-05ea2dab834e8a06c
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Access-Control-Allow-Headers, Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization'"
+      AllowMethods: "'GET, POST'"
+Parameters:
+  Environment:
+    Type: String
+    Default: qa
+    AllowedValues:
+      - dev
+      - qa
+      - prod
+    Description: Enter dev, qa, or prod. Default is dev.
+  AccountId:
+    Type: Number
+    Default: 553856789961
+  Region:
+    Type: String
+    Default: eu-west-1
+  Location:
+    Type: String
+    Default: euw1
+  AppName:
+    Type: String
+    Default: "dbscriptsliquibase"
+  VpcSg:
+    Type: String
+    Default: sg-0e7c40083c916ebfa
+  LogRetention:
+    Type: Number
+    Default: 1
+
+Resources:
+  CreateUsersApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-createUsersApi-${Environment}-${Location}-lambda"
+      Handler: createUsers.createUsersApiHandler
+      Policies:
+        - AdministratorAccess
+      Architectures:
+        - x86_64
+      Events:
+        AssignUsers:
+          Type: Api
+          Properties:
+            Path: /create-users
+            Method: post
+        DeleteUsers:
+          Type: Api
+          Properties:
+            Path: /delete-users2
+            Method: post

@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources:
+
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: MyLambdaRequestAuthorizer
+        Authorizers:
+          MyLambdaRequestAuthorizer:
+            FunctionPayloadType: REQUEST
+            FunctionArn: !GetAtt authFunction.Arn
+            Identity:
+              QueryStrings:
+                - auth
+              ReauthorizeEvery: 100
+
+  backendFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: backend.lambda_handler
+      Runtime: nodejs12.x
+      CodeUri: .
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /hello
+            Method: GET
+
+  authFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      CodeUri: .
+      Handler: auth.lambda_handler
+      Runtime: nodejs12.x
+
+Outputs:
+  ApiUrl:
+    Description: "API endpoint URL"
+    Value: !Sub 'https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/dev/hello?auth=yes'

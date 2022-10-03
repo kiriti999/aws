@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Lambda Authorizer for APP Portfolio Projects
+
+Globals:
+  Function:
+    CodeUri: ./
+    Timeout: 30
+    Runtime: nodejs14.x
+    Environment:
+      Variables:
+        NODE_ENV: "production"
+        HOST: !Sub "{{resolve:ssm:/${Environment}/${AppName}/host}}"
+        PORT: !Sub "{{resolve:ssm:/${Environment}/${AppName}/port}}"
+        AUDIENCE: !Sub "{{resolve:ssm:/${Environment}/${AppName}/audience}}"
+        ISSUER: !Sub "{{resolve:ssm:/${Environment}/${AppName}/issuer}}"
+        CLOCKTOLERANCE: !Sub "{{resolve:ssm:/${Environment}/${AppName}/clockTolerance}}"
+        API_VERSION: !Sub "{{resolve:ssm:/${Environment}/${AppName}/apiVersion}}"
+        TABLE_NAME: !Sub "{{resolve:ssm:/${Environment}/${AppName}/tableName}}"
+        KEY_URI: !Sub "{{resolve:ssm:/${Environment}/${AppName}/keyUri}}"
+        TIMEOUT: !Sub "{{resolve:ssm:/${Environment}/${AppName}/uriTimeout}}"
+        KEEPALIVE: !Sub "{{resolve:ssm:/${Environment}/${AppName}/keepAlive}}"
+        REJECTUNAUTHORIZED: !Sub "{{resolve:ssm:/${Environment}/${AppName}/rejectUnauthorized}}"
+        ZSCALLERKEY: !Sub "{{resolve:ssm:/${Environment}/${AppName}/zScallerKey}}"
+        LOCALKEY: !Sub "{{resolve:ssm:/${Environment}/${AppName}/localKey}}"
+    # VpcConfig:
+    #     SecurityGroupIds:
+    #       - sg-0b90bc8d5b7fd622d
+    #     SubnetIds:
+    #       - subnet-024f78e51ad1c253c
+    #       - subnet-0c3ca256f6eecd7d0
+    #       - subnet-02153a0330369b795
+    Layers:
+      - !Ref RunTimeDependencyLayer
+    Tags:
+      Name: !Sub "${AppName}-${Environment}-${Location}-lambda"
+      Project: 'APP Portfolio'
+      Scope: 'APP Portfolio Lambda Authorizer'
+      Env: !Sub "${Environment}"
+      Owner: 'APP Portfolio'
+      CreatedBy: !Sub "${AppName}-${Environment}-${Location}-lambda"
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - qa
+      - prod
+      - test
+    Description: Enter dev, qa, or prod. Default is dev.
+  Location:
+    Type: String
+    Default: euw1
+  AppName:
+    Type: String
+    Default: 'app-portfolio-api-authorizer'
+  dynamoDbTableName:
+    Type: String
+    Default: 'ApiScope'
+  dynamoDbEndPointServiceName:
+    Type: String
+    Default: 'com.amazonaws.eu-west-1.dynamodb'
+
+Resources:
+  AuthorizeRequestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AppName}-AuthorizeRequest-${Environment}-${Location}-lambda"
+      Role: "arn:aws:iam::211614003246:role/HashanOmiedSuperTestRole"
+      Handler: handlers/authorizeRequest.lambdaHandler
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          DAX_ENDPOINT: !GetAtt cacheCluster.ClusterDiscoveryEndpoint
+          DDB_TABLE: !Ref dynamoDbTableName
+    Metadata:
+      BuildMethod: makefile
+
+  cacheCluster:
+    Type: AWS::DAX::Cluster
+    Properties:
+      ClusterName: cache-cluster
+      Description: Cluster for dax
+      IAMRoleARN: "arn:aws:iam::211614003246:role/HashanOmiedSuperTestRole"
+      NodeType: dax.t2.small
+      ReplicationFactor: 1
+
+  RunTimeDependencyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      LayerName: 'app-authorizer-runtime-dependencies'
+      Description: Contains Runtime Dependencies for API Authorizer
+      ContentUri: ./
+      CompatibleRuntimes:
+        - nodejs14.x
+      RetentionPolicy: Retain
+
+Outputs:
+  AuthorizeRequestFunctionArn:
+    Description: "APP Portfolio API Authorizer Function"
+    Value: !GetAtt AuthorizeRequestFunction.Arn
+    Export:
+      Name: !Sub "${Environment}AuthorizerArn"

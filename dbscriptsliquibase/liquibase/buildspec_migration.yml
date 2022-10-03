@@ -1,0 +1,30 @@
+version: 0.2
+
+env:
+  shell: bash
+  # variables:
+  #   secret_name:  "/qa/dbscriptsliquibase/dbInfo"
+  secrets-manager:
+    DB_USERNAME: "/${env}/${secret_path}:username"
+    DB_PASSWORD: "/${env}/${secret_path}:password"
+    DB_NAME: "/${env}/${secret_path}:dbname"
+    DB_HOST: "/${env}/${secret_path}:host"
+    DB_PORT: "/${env}/${secret_path}:port"
+
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+    commands:
+      - root_dir=`pwd`
+      - cd liquibase/scripts && chmod +x *.sh && cd $root_dir
+      - source $NVM_DIR/nvm.sh && nvm install 14.19.0
+      # - source scripts/nvm_setup.sh
+  build:
+    on-failure: ABORT
+    commands:
+      - echo Build started on `date`
+      - ./liquibase/scripts/migrate.sh ${DB_USERNAME} ${DB_PASSWORD} ${DB_NAME} ${DB_HOST} ${DB_PORT}
+  post_build:
+    commands:
+      - echo Build completed on `date`
