@@ -1,4 +1,3 @@
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { S3 } from 'aws-sdk';
 
@@ -28,7 +27,7 @@ async function generateUrl(object: S3.Object) {
     // Implement
     const url = await s3.getSignedUrlPromise('getObject', {
         Bucket: bucketName,
-        key: object.Key,
+        Key: object.Key,
         Expires: (24 * 60 * 60)
     });
 
