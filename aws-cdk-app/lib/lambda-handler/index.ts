@@ -11,6 +11,10 @@ exports.handler = async function (event: APIGatewayProxyEventV2, context: Contex
         console.log('handler called with bucket name: ', bucketName);
         const { Contents: results } = await s3.listObjects({ Bucket: bucketName }).promise();
         const photos = await Promise.all(results!.map((item) => generateUrl(item)));
+        return {
+            statusCode: 200,
+            body: JSON.stringify(photos),
+        };
     } catch (error) {
         console.log('file: index.ts :: line 14 :: err', error);
         return {
@@ -18,10 +22,7 @@ exports.handler = async function (event: APIGatewayProxyEventV2, context: Contex
             body: 'error occurred'
         };
     }
-    return {
-        statusCode: 200,
-        body: 'kiriti',
-    };
+
 }
 async function generateUrl(object: S3.Object) {
     // Implement
