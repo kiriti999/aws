@@ -25,10 +25,6 @@ export class AwsCdkAppStack extends cdk.Stack {
     bucketPermissions.addResources(`${bucket.bucketArn}/*`);
     bucketPermissions.addActions('s3:GetObject', 's3:PutObject');
 
-    new cdk.CfnOutput(this, 'MySimpleAppBucketNameExport', {
-      value: bucket.bucketName, exportName: 'MySimpleAppBucketName'
-    });
-
     new BucketDeployment(this, 'MySimpleAppPhotos', {
       sources: [
         Source.asset(path.join(__dirname, 'photos'))
@@ -64,5 +60,13 @@ export class AwsCdkAppStack extends cdk.Stack {
 
     getPhotos.addToRolePolicy(policy);
     getPhotos.addToRolePolicy(bucketPermissions);
+
+    new cdk.CfnOutput(this, 'MySimpleAppBucketNameExport', {
+      value: bucket.bucketName, exportName: 'MySimpleAppBucketName'
+    });
+    new cdk.CfnOutput(this, 'MySimpleAppApi', {
+      value: httpApi.url!, exportName: 'MySimpleAppApiEndPoint'
+    });
+
   }
 }
