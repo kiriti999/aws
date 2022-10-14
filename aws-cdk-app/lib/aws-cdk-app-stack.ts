@@ -1,13 +1,16 @@
-import * as cdk from 'aws-cdk-lib';
-import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
-import { Construct } from 'constructs';
-import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as path from 'path';
-import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import * as cdk from '@aws-cdk/core';
+import { Bucket, BucketEncryption } from '@aws-cdk/aws-s3';
+import * as lambda from "@aws-cdk/aws-lambda-nodejs";
+import { BucketDeployment, Source } from '@aws-cdk/aws-s3-deployment';
+import { PolicyStatement } from '@aws-cdk/aws-iam';
+import { HttpApi } from '@aws-cdk/aws-apigatewayv2';
+import { HttpMethod } from '@aws-cdk/aws-events';
+import { Runtime } from '@aws-cdk/aws-lambda';
+import { HttpLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations';
 
 export class AwsCdkAppStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const bucket = new Bucket(this, 'MySimpleAppBucket', {
@@ -33,13 +36,30 @@ export class AwsCdkAppStack extends cdk.Stack {
       destinationBucket: bucket
     });
 
-    const getPhotos = new lambda.Function(this, 'MySimpleLambda', {
-      runtime: lambda.Runtime.NODEJS_16_X,
+    const getPhotos = new lambda.NodejsFunction(this, 'MySimpleLambda', {
+      runtime: Runtime.NODEJS_16_X,
       handler: './lambda-handler/index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, 'lambda-handler')),
+      entry: (path.join(__dirname, 'lambda-handler')),
       environment: {
         PHOTO_BUCKET_NAME: bucket.bucketName
       }
+    });
+
+    const httpApi = new HttpApi(this, 'HttpApi', {
+      corsPreflight: {
+        allowOrigins: ['*'],
+        allowHeaders: [HttpMethod.GET]
+      },
+      apiName: 'photo-api',
+      createDefaultStage: true
+    });
+
+    const lambdaIntegration = new HttpLambdaIntegration('LambdaProxyIntegration', getPhotos);
+
+    httpApi.addRoutes({
+      path: '/getPhotos',
+      methods: [HttpMethod.GET],
+      integration: lambdaIntegration
     });
 
     getPhotos.addToRolePolicy(policy);
