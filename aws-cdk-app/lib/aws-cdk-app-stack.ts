@@ -9,12 +9,16 @@ import { HttpMethod } from '@aws-cdk/aws-events';
 import { Runtime } from '@aws-cdk/aws-lambda';
 import { HttpLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations';
 
+interface AwsCdkAppStackProps extends cdk.StackProps {
+  envName?: string
+}
+
 export class AwsCdkAppStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: cdk.Construct, id: string, props?: AwsCdkAppStackProps) {
     super(scope, id, props);
 
     const bucket = new Bucket(this, 'MySimpleAppBucket', {
-      encryption: BucketEncryption.S3_MANAGED
+      encryption: props?.envName === 'dev' ? BucketEncryption.S3_MANAGED : BucketEncryption.UNENCRYPTED
     });
 
     const policy = new PolicyStatement();
@@ -34,8 +38,8 @@ export class AwsCdkAppStack extends cdk.Stack {
 
     const getPhotos = new lambda.NodejsFunction(this, 'MySimpleLambda', {
       runtime: Runtime.NODEJS_16_X,
-      handler: './lambda-handler/index.handler',
-      entry: (path.join(__dirname, 'lambda-handler')),
+      entry: (path.join(__dirname, 'lambda-handler', 'index.ts')),
+      handler: 'handler',
       environment: {
         PHOTO_BUCKET_NAME: bucket.bucketName
       }
@@ -61,11 +65,12 @@ export class AwsCdkAppStack extends cdk.Stack {
     getPhotos.addToRolePolicy(policy);
     getPhotos.addToRolePolicy(bucketPermissions);
 
+
     new cdk.CfnOutput(this, 'MySimpleAppBucketNameExport', {
-      value: bucket.bucketName, exportName: 'MySimpleAppBucketName'
+      value: bucket.bucketName, exportName: `MySimpleAppBucketName`
     });
     new cdk.CfnOutput(this, 'MySimpleAppApi', {
-      value: httpApi.url!, exportName: 'MySimpleAppApiEndPoint'
+      value: httpApi.url!, exportName: `MySimpleAppApiEndPoint`
     });
 
   }
